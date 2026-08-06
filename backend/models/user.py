@@ -9,11 +9,18 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base_model import BaseModel
 
+from sqlalchemy.orm import relationship
 
 class User(BaseModel):
     """Application user."""
 
     __tablename__ = "users"
+
+    daily_logs = relationship(
+        "DailyLog",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     name: Mapped[str] = mapped_column(
         String(100),
