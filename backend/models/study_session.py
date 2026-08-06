@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models.base_model import BaseModel
 
+from sqlalchemy import CheckConstraint
 
 class StudySession(BaseModel):
     """Study session."""
@@ -68,3 +69,10 @@ class StudySession(BaseModel):
         "Subject",
         back_populates="study_sessions",
     )
+
+    __table_args__ = (
+    CheckConstraint(
+        "focus_score IS NULL OR (focus_score >= 1 AND focus_score <= 10)",
+        name="ck_focus_score",
+    ),
+)

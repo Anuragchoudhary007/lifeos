@@ -10,7 +10,7 @@ from sqlalchemy import Date, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models.base_model import BaseModel
-
+from sqlalchemy import UniqueConstraint
 
 class DailyLog(BaseModel):
     """Represents one day in the user's life."""
@@ -52,4 +52,12 @@ study_sessions = relationship(
     "StudySession",
     back_populates="daily_log",
     cascade="all, delete-orphan",
+)
+
+__table_args__ = (
+    UniqueConstraint(
+        "user_id",
+        "log_date",
+        name="uq_user_log_date",
+    ),
 )

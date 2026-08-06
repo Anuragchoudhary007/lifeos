@@ -8,7 +8,7 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.models.base_model import BaseModel
-
+from sqlalchemy import CheckConstraint
 
 class Subject(BaseModel):
     """Study subject."""
@@ -35,3 +35,10 @@ class Subject(BaseModel):
         "StudySession",
         back_populates="subject",
     )
+
+    __table_args__ = (
+    CheckConstraint(
+        "length(name) > 0",
+        name="ck_subject_name",
+    ),
+)
