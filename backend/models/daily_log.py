@@ -48,3 +48,8 @@ class DailyLog(BaseModel):
         "User",
         back_populates="daily_logs",
     )
+study_sessions = relationship(
+    "StudySession",
+    back_populates="daily_log",
+    cascade="all, delete-orphan",
+)
