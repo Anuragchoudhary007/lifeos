@@ -657,6 +657,102 @@ try:
 
         st.info("No study activity yet.")
 
+    st.divider()
+
+    section("🎯 Performance Overview")
+
+    total_hours = advanced.total_hours()
+    average_focus = advanced.average_focus()
+    consistency = advanced.consistency_score()
+
+    performance_col1, performance_col2, performance_col3 = st.columns(3)
+
+    with performance_col1:
+        metric_card(
+            "Total Study",
+            f"{total_hours:.1f}h",
+        )
+
+    with performance_col2:
+        metric_card(
+            "Average Focus",
+            f"{average_focus:.1f}/10",
+        )
+
+    with performance_col3:
+        metric_card(
+            "Consistency",
+            f"{consistency:.0f}%",
+        )
+
+    st.subheader("🏆 Subject Performance")
+
+    performance = advanced.subject_performance()
+
+    if performance:
+
+        performance_df = pd.DataFrame(performance)
+
+        st.dataframe(
+            performance_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    else:
+
+        st.info("No subject performance data yet.")
+
+    st.subheader("🧠 Focus vs Study Duration")
+
+    if sessions:
+
+        scatter_df = pd.DataFrame(
+            [
+                {
+                    "Subject": session.subject.name,
+                    "Duration": session.duration_minutes,
+                    "Focus": session.focus_score,
+                    "Topic": session.topic,
+                }
+                for session in sessions
+                if session.focus_score is not None
+            ]
+        )
+
+        if not scatter_df.empty:
+
+            fig = px.scatter(
+                scatter_df,
+                x="Duration",
+                y="Focus",
+                color="Subject",
+                hover_data=["Topic"],
+                title="Does Longer Study Mean Better Focus?",
+            )
+
+            fig.update_layout(
+                height=400,
+                xaxis_title="Study Duration (minutes)",
+                yaxis_title="Focus Score",
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+            )
+
+        else:
+
+            st.info(
+                "Add focus scores to your sessions "
+                "to see this analysis."
+            )
+
+    else:
+
+        st.info("No study sessions yet.")
+
 
 finally:
 
