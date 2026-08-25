@@ -4,7 +4,8 @@ Study repository.
 
 from __future__ import annotations
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from backend.models.study_session import StudySession
 
@@ -17,13 +18,12 @@ class StudyRepository:
 
     def create(self, study_session: StudySession) -> StudySession:
         self.db.add(study_session)
-        self.db.commit()
-        self.db.refresh(study_session)
         return study_session
 
     def get_all(self) -> list[StudySession]:
-        return (
-            self.db.query(StudySession)
+        stmt = (
+            select(StudySession)
+            .options(selectinload(StudySession.subject))
             .order_by(StudySession.started_at.desc())
-            .all()
         )
+        return list(self.db.scalars(stmt).all())

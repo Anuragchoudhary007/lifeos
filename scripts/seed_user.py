@@ -1,19 +1,20 @@
 from backend.database.session import SessionLocal
 from backend.models.user import User
+from config.settings import settings
 
 
 db = SessionLocal()
 
 try:
     user = db.query(User).filter(
-        User.email == "anurag@lifeos.local"
+        User.email == settings.DEFAULT_USER_EMAIL
     ).first()
 
     if user is None:
         user = User(
-            name="Anurag",
-            email="anurag@lifeos.local",
-            timezone="Asia/Kolkata",
+            name=settings.DEFAULT_USER_NAME,
+            email=settings.DEFAULT_USER_EMAIL,
+            timezone=settings.DEFAULT_USER_TIMEZONE,
         )
 
         db.add(user)

@@ -49,5 +49,23 @@ class Settings:
 
     DATABASE_URL = f"sqlite:///{DATABASE_DIR / DATABASE_NAME}"
 
+    # --------------------------------------------------
+    # Single-user defaults
+    # --------------------------------------------------
+
+    DEFAULT_USER_NAME = "Anurag"
+    DEFAULT_USER_EMAIL = "anurag@lifeos.local"
+    DEFAULT_USER_TIMEZONE = "Asia/Kolkata"
+    DEFAULT_WEEKLY_STUDY_GOAL_HOURS = 20.0
+    DEFAULT_SUBJECT_NAMES = (
+        "DSA",
+        "Excel",
+        "Power BI",
+        "Projects",
+        "Python",
+        "SQL",
+        "Statistics",
+    )
+
 
 settings = Settings()

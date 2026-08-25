@@ -1,24 +1,37 @@
-from datetime import date
+from __future__ import annotations
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from backend.database.session import SessionLocal
-from backend.models.daily_log import DailyLog
-from backend.models.user import User
+from backend.models.subject import Subject
+from config.settings import settings
 
 
-db = SessionLocal()
+def seed_subjects(db: Session) -> list[Subject]:
+    """Create configured default subjects without duplicating existing rows."""
+    existing_names = set(db.scalars(select(Subject.name)).all())
+    created = [
+        Subject(name=name)
+        for name in settings.DEFAULT_SUBJECT_NAMES
+        if name not in existing_names
+    ]
 
-user = db.query(User).filter(User.email == "anurag@lifeos.local").first()
+    if created:
+        db.add_all(created)
+        db.commit()
 
-if not user:
-    user = User(
-        name="Anurag",
-        email="anurag@lifeos.local",
-        timezone="Asia/Kolkata",
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    return created
 
-print(f"User ready: {user.name}")
 
-db.close()
+def main() -> None:
+    db = SessionLocal()
+    try:
+        created = seed_subjects(db)
+        print(f"Seeded {len(created)} subject(s).")
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    main()

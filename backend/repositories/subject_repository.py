@@ -15,3 +15,6 @@ class SubjectRepository:
     def get_all(self) -> list[Subject]:
         stmt = select(Subject).order_by(Subject.name)
         return list(self.db.scalars(stmt).all())
+
+    def get_by_id(self, subject_id: int) -> Subject | None:
+        return self.db.get(Subject, subject_id)

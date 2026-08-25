@@ -71,8 +71,12 @@ class StudySession(BaseModel):
     )
 
     __table_args__ = (
-    CheckConstraint(
-        "focus_score IS NULL OR (focus_score >= 1 AND focus_score <= 10)",
-        name="ck_focus_score",
-    ),
-)
+        CheckConstraint(
+            "focus_score IS NULL OR (focus_score >= 1 AND focus_score <= 10)",
+            name="ck_focus_score",
+        ),
+        CheckConstraint(
+            "duration_minutes > 0",
+            name="ck_study_session_duration_positive",
+        ),
+    )

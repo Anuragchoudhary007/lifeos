@@ -5,15 +5,12 @@ from datetime import date, datetime, time
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-from sqlalchemy import select
 
 from app.components.metric_card import metric_card
 from app.components.section import section
 from app.database import get_db
 from app.theme import load_theme
 
-from backend.models.daily_log import DailyLog
-from backend.models.user import User
 from backend.services.study_analytics_service import StudyAnalyticsService
 from backend.services.study_advanced_analytics import (
     AdvancedStudyAnalytics,
@@ -21,6 +18,8 @@ from backend.services.study_advanced_analytics import (
 from backend.services.study_goal_service import StudyGoalService
 from backend.services.study_service import StudyService
 from backend.services.subject_service import SubjectService
+from backend.services.user_context_service import UserContextService
+from config.settings import settings
 
 
 # =========================================================
@@ -46,7 +45,7 @@ try:
     # =====================================================
 
     analytics = StudyAnalyticsService(db)
-    goal_service = StudyGoalService(analytics)
+    goal_service = StudyGoalService(db)
 
     sessions = analytics.get_sessions()
 
@@ -88,52 +87,112 @@ try:
             f"{streak} Days",
         )
 
+    # =========================================================
+    # WEEKLY STUDY GOAL
+    # =========================================================
+
     st.divider()
 
     section("🎯 Weekly Study Goal")
 
-    goal_col1, goal_col2 = st.columns([1, 2])
+    user = UserContextService(db).get_current_user()
 
-    with goal_col1:
+    if user is None:
 
-        weekly_target = st.number_input(
-            "Weekly Target (hours)",
-            min_value=1.0,
-            max_value=168.0,
-            value=20.0,
-            step=1.0,
+        st.error(
+            "LifeOS user not found. "
+            "Run: python -m scripts.seed_user"
         )
 
-    with goal_col2:
+    else:
 
-        goal = goal_service.weekly_progress(
-            weekly_target
+        existing_goal = (
+            goal_service.get_current_goal(user.id)
         )
 
-        st.metric(
-            "Weekly Progress",
-            f"{goal['actual']:.1f} / {goal['target']:.1f} h",
+        default_target = (
+            existing_goal.target_hours
+            if existing_goal
+            else settings.DEFAULT_WEEKLY_STUDY_GOAL_HOURS
         )
 
-        st.progress(
-            goal["progress"],
-            text=(
-                f"{goal['progress'] * 100:.1f}% "
-                f"complete"
-            ),
-        )
+        goal_col1, goal_col2 = st.columns([1, 2])
 
-        if goal["remaining"] > 0:
+        with goal_col1:
 
-            st.caption(
-                f"⏳ {goal['remaining']:.1f}h remaining"
+            weekly_target = st.number_input(
+                "Weekly Target (hours)",
+                min_value=1.0,
+                max_value=168.0,
+                value=float(default_target),
+                step=1.0,
             )
 
-        else:
+            save_goal = st.button(
+                "🎯 Save Weekly Goal",
+                use_container_width=True,
+            )
+
+        if save_goal:
+
+            goal_service.save_current_goal(
+                user.id,
+                weekly_target,
+            )
 
             st.success(
-                "🏆 Weekly study goal completed!"
+                "✅ Weekly goal saved!"
             )
+
+            st.rerun()
+
+        with goal_col2:
+
+            saved_goal = (
+                goal_service.get_current_goal(
+                    user.id
+                )
+            )
+
+            target = (
+                saved_goal.target_hours
+                if saved_goal
+                else weekly_target
+            )
+
+            actual = analytics.week_hours()
+
+            progress = min(
+                actual / target,
+                1.0,
+            ) if target > 0 else 0.0
+
+            remaining = max(
+                target - actual,
+                0,
+            )
+
+            st.metric(
+                "Weekly Progress",
+                f"{actual:.1f} / {target:.1f} h",
+            )
+
+            st.progress(
+                progress,
+                text=f"{progress * 100:.1f}% complete",
+            )
+
+            if remaining > 0:
+
+                st.caption(
+                    f"⏳ {remaining:.1f}h remaining"
+                )
+
+            else:
+
+                st.success(
+                    "🏆 Weekly study goal completed!"
+                )
 
     st.divider()
 
@@ -230,14 +289,6 @@ try:
 
                 else:
 
-                    user = db.scalars(
-                        select(User).where(
-                            User.email
-                            == "anurag@lifeos.local"
-                        )
-                    ).first()
-
-
                     if user is None:
 
                         st.error(
@@ -248,42 +299,11 @@ try:
 
                     else:
 
-                        # -------------------------------------
-                        # Find Daily Log
-                        # -------------------------------------
-
-                        log = db.scalars(
-                            select(DailyLog).where(
-                                DailyLog.user_id == user.id,
-                                DailyLog.log_date == study_date,
-                            )
-                        ).first()
-
-
-                        # -------------------------------------
-                        # Create Daily Log
-                        # -------------------------------------
-
-                        if log is None:
-
-                            log = DailyLog(
-                                user_id=user.id,
-                                log_date=study_date,
-                            )
-
-                            db.add(log)
-                            db.commit()
-                            db.refresh(log)
-
-
-                        # -------------------------------------
-                        # Create Study Session
-                        # -------------------------------------
-
                         service = StudyService(db)
 
-                        service.create_session(
-                            daily_log_id=log.id,
+                        service.create_session_for_user(
+                            user_id=user.id,
+                            study_date=study_date,
                             subject_id=subject.id,
                             topic=topic.strip(),
                             started_at=datetime.combine(
@@ -306,48 +326,170 @@ try:
                         st.rerun()
 
 
-    # =====================================================
-    # RECENT SESSIONS
-    # =====================================================
+    # =========================================================
+    # SESSION EXPLORER
+    # =========================================================
 
     with right:
 
-        section("📋 Recent Sessions")
+        section("🔎 Session Explorer")
 
         study_service = StudyService(db)
-
         sessions = study_service.get_sessions()
-
 
         if not sessions:
 
-            st.info(
-                "No study sessions yet."
-            )
+            st.info("No study sessions yet.")
 
         else:
 
-            for session in sessions[:10]:
+            session_data = []
 
-                focus_display = (
-                    f"{session.focus_score}/10"
-                    if session.focus_score is not None
-                    else "N/A"
+            for session in sessions:
+
+                session_data.append(
+                    {
+                        "Date": session.started_at.date(),
+                        "Subject": session.subject.name,
+                        "Topic": session.topic,
+                        "Duration (min)": session.duration_minutes,
+                        "Focus": session.focus_score,
+                        "Start": session.started_at.strftime(
+                            "%H:%M"
+                        ),
+                        "End": session.ended_at.strftime(
+                            "%H:%M"
+                        ),
+                        "Notes": session.notes or "",
+                    }
                 )
 
-                st.markdown(
-                    f"""
-                    **{session.topic}**
+            sessions_df = pd.DataFrame(
+                session_data
+            )
 
-                    📚 {session.subject.name}
+            # ---------------------------------------------
+            # Filters
+            # ---------------------------------------------
 
-                    ⏱️ {session.duration_minutes} minutes
+            filter1, filter2 = st.columns(2)
 
-                    🎯 Focus: {focus_display}
-                    """
+            with filter1:
+
+                search = st.text_input(
+                    "🔍 Search topic",
+                    placeholder="e.g. JOIN",
                 )
 
-                st.divider()
+            with filter2:
+
+                subject_options = [
+                    "All"
+                ] + sorted(
+                    sessions_df["Subject"].unique().tolist()
+                )
+
+                selected_subject = st.selectbox(
+                    "📚 Subject",
+                    subject_options,
+                )
+
+            filter3, filter4 = st.columns(2)
+
+            with filter3:
+
+                min_focus = st.slider(
+                    "Minimum Focus",
+                    min_value=1,
+                    max_value=10,
+                    value=1,
+                )
+
+            with filter4:
+
+                min_duration = st.number_input(
+                    "Minimum Duration (min)",
+                    min_value=0,
+                    value=0,
+                    step=15,
+                )
+
+            # ---------------------------------------------
+            # Apply filters
+            # ---------------------------------------------
+
+            filtered_df = sessions_df.copy()
+
+            if search:
+
+                filtered_df = filtered_df[
+                    filtered_df["Topic"]
+                    .str.contains(
+                        search,
+                        case=False,
+                        na=False,
+                    )
+                ]
+
+            if selected_subject != "All":
+
+                filtered_df = filtered_df[
+                    filtered_df["Subject"]
+                    == selected_subject
+                ]
+
+            filtered_df = filtered_df[
+                filtered_df["Focus"].fillna(0)
+                >= min_focus
+            ]
+
+            filtered_df = filtered_df[
+                filtered_df["Duration (min)"]
+                >= min_duration
+            ]
+
+            # ---------------------------------------------
+            # Results
+            # ---------------------------------------------
+
+            st.caption(
+                f"{len(filtered_df)} session(s) found"
+            )
+
+            st.dataframe(
+                filtered_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Date": st.column_config.DateColumn(
+                        "Date"
+                    ),
+                    "Duration (min)": st.column_config.NumberColumn(
+                        "Duration",
+                        format="%d min",
+                    ),
+                    "Focus": st.column_config.NumberColumn(
+                        "Focus",
+                        format="%d/10",
+                    ),
+                },
+            )
+
+            # ---------------------------------------------
+            # Export
+            # ---------------------------------------------
+
+            csv = filtered_df.to_csv(
+                index=False
+            ).encode("utf-8")
+
+            st.download_button(
+                "⬇️ Export CSV",
+                data=csv,
+                file_name="lifeos_study_sessions.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
 
 
     # =====================================================

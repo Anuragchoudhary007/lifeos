@@ -8,6 +8,7 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.models.base_model import BaseModel
+from config.settings import settings
 
 from sqlalchemy.orm import relationship
 
@@ -18,6 +19,12 @@ class User(BaseModel):
 
     daily_logs = relationship(
         "DailyLog",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    study_goals = relationship(
+        "StudyGoal",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -44,6 +51,6 @@ class User(BaseModel):
 
     timezone: Mapped[str] = mapped_column(
         String(50),
-        default="Asia/Kolkata",
+        default=settings.DEFAULT_USER_TIMEZONE,
         nullable=False,
     )

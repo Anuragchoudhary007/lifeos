@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from backend.models.study_session import StudySession
+from backend.timezone import to_local_datetime
 
 
 class AdvancedStudyAnalytics:
@@ -20,7 +21,7 @@ class AdvancedStudyAnalytics:
         result = defaultdict(float)
 
         for session in self.sessions:
-            result[session.started_at.date()] += (
+            result[to_local_datetime(session.started_at).date()] += (
                 session.duration_minutes / 60
             )
 
@@ -45,7 +46,7 @@ class AdvancedStudyAnalytics:
         }
 
         for session in self.sessions:
-            day = session.started_at.strftime("%A")
+            day = to_local_datetime(session.started_at).strftime("%A")
 
             result[day] += (
                 session.duration_minutes / 60
@@ -61,7 +62,7 @@ class AdvancedStudyAnalytics:
         result = defaultdict(float)
 
         for session in self.sessions:
-            hour = session.started_at.hour
+            hour = to_local_datetime(session.started_at).hour
 
             result[hour] += (
                 session.duration_minutes / 60
