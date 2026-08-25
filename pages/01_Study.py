@@ -15,6 +15,9 @@ from app.theme import load_theme
 from backend.models.daily_log import DailyLog
 from backend.models.user import User
 from backend.services.study_analytics_service import StudyAnalyticsService
+from backend.services.study_advanced_analytics import (
+    AdvancedStudyAnalytics,
+)
 from backend.services.study_service import StudyService
 from backend.services.subject_service import SubjectService
 
@@ -42,6 +45,10 @@ try:
     # =====================================================
 
     analytics = StudyAnalyticsService(db)
+
+    sessions = analytics.get_sessions()
+
+    advanced = AdvancedStudyAnalytics(sessions)
 
     today_hours = analytics.today_hours()
     week_hours = analytics.week_hours()
@@ -481,6 +488,174 @@ try:
         st.info(
             "No focus data yet."
         )
+
+    st.divider()
+
+    section("🔬 Advanced Productivity Analysis")
+
+    advanced_col1, advanced_col2 = st.columns(2)
+
+
+    # =========================================================
+    # WEEKDAY PRODUCTIVITY
+    # =========================================================
+
+    with advanced_col1:
+
+        st.subheader("📆 Study Hours by Weekday")
+
+        weekday_data = advanced.weekday_hours()
+
+        weekday_df = pd.DataFrame(
+            {
+                "Weekday": list(weekday_data.keys()),
+                "Hours": list(weekday_data.values()),
+            }
+        )
+
+        fig = px.bar(
+            weekday_df,
+            x="Weekday",
+            y="Hours",
+            title="Which Days Are Most Productive?",
+            text_auto=".1f",
+        )
+
+        fig.update_layout(
+            height=380,
+            xaxis_title=None,
+            yaxis_title="Hours",
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+        )
+
+
+    # =========================================================
+    # BEST STUDY TIME
+    # =========================================================
+
+    with advanced_col2:
+
+        st.subheader("⏰ Study Time Distribution")
+
+        hourly_data = advanced.hourly_distribution()
+
+        if hourly_data:
+
+            hourly_df = pd.DataFrame(
+                {
+                    "Hour": list(hourly_data.keys()),
+                    "Hours": list(hourly_data.values()),
+                }
+            )
+
+            hourly_df["Time"] = hourly_df["Hour"].apply(
+                lambda x: f"{x:02d}:00"
+            )
+
+            fig = px.bar(
+                hourly_df,
+                x="Time",
+                y="Hours",
+                title="When You Study Most",
+                text_auto=".1f",
+            )
+
+            fig.update_layout(
+                height=380,
+                xaxis_title="Start Time",
+                yaxis_title="Hours",
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+            )
+
+        else:
+
+            st.info("No study data yet.")
+
+    # =========================================================
+    # 7-DAY ROLLING AVERAGE
+    # =========================================================
+
+    st.subheader("📈 7-Day Rolling Study Average")
+
+    rolling = advanced.rolling_7_day_average()
+
+    if rolling:
+
+        rolling_df = pd.DataFrame(
+            rolling,
+            columns=["Date", "Average"],
+        )
+
+        fig = px.line(
+            rolling_df,
+            x="Date",
+            y="Average",
+            markers=True,
+            title="7-Day Rolling Average",
+        )
+
+        fig.update_layout(
+            height=380,
+            yaxis_title="Average Hours / Day",
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+        )
+
+    else:
+
+        st.info("Not enough study data yet.")
+
+    # =========================================================
+    # STUDY ACTIVITY HEATMAP
+    # =========================================================
+
+    st.subheader("📅 Study Activity")
+
+    daily = advanced.daily_hours()
+
+    if daily:
+
+        heatmap_df = pd.DataFrame(
+            {
+                "Date": list(daily.keys()),
+                "Hours": list(daily.values()),
+            }
+        )
+
+        fig = px.density_heatmap(
+            heatmap_df,
+            x="Date",
+            y=["Study"] * len(heatmap_df),
+            z="Hours",
+            histfunc="sum",
+            title="Study Activity Heatmap",
+        )
+
+        fig.update_layout(
+            height=220,
+            xaxis_title=None,
+            yaxis_title=None,
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+        )
+
+    else:
+
+        st.info("No study activity yet.")
 
 
 finally:
