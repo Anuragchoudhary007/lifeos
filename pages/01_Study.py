@@ -18,6 +18,7 @@ from backend.services.study_analytics_service import StudyAnalyticsService
 from backend.services.study_advanced_analytics import (
     AdvancedStudyAnalytics,
 )
+from backend.services.study_goal_service import StudyGoalService
 from backend.services.study_service import StudyService
 from backend.services.subject_service import SubjectService
 
@@ -45,6 +46,7 @@ try:
     # =====================================================
 
     analytics = StudyAnalyticsService(db)
+    goal_service = StudyGoalService(analytics)
 
     sessions = analytics.get_sessions()
 
@@ -86,6 +88,52 @@ try:
             f"{streak} Days",
         )
 
+    st.divider()
+
+    section("🎯 Weekly Study Goal")
+
+    goal_col1, goal_col2 = st.columns([1, 2])
+
+    with goal_col1:
+
+        weekly_target = st.number_input(
+            "Weekly Target (hours)",
+            min_value=1.0,
+            max_value=168.0,
+            value=20.0,
+            step=1.0,
+        )
+
+    with goal_col2:
+
+        goal = goal_service.weekly_progress(
+            weekly_target
+        )
+
+        st.metric(
+            "Weekly Progress",
+            f"{goal['actual']:.1f} / {goal['target']:.1f} h",
+        )
+
+        st.progress(
+            goal["progress"],
+            text=(
+                f"{goal['progress'] * 100:.1f}% "
+                f"complete"
+            ),
+        )
+
+        if goal["remaining"] > 0:
+
+            st.caption(
+                f"⏳ {goal['remaining']:.1f}h remaining"
+            )
+
+        else:
+
+            st.success(
+                "🏆 Weekly study goal completed!"
+            )
 
     st.divider()
 
