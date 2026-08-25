@@ -1,0 +1,16 @@
+.block-container{
+    padding-top:2rem;
+    padding-bottom:2rem;
+    max-width:1400px;
+}
+
+.stMetric{
+    border-radius:18px;
+    padding:18px;
+    background:#1E293B;
+    border:1px solid #334155;
+}
+
+div[data-testid="stVerticalBlock"]{
+    gap:1rem;
+}
